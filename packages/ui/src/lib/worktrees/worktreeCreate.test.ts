@@ -17,6 +17,7 @@ let gitStatus: {
 } | null = null;
 let branchTracking: MockBranchTracking = {};
 let gitFetchError: Error | null = null;
+let gitFetchSuccess = true;
 const gitFetchCalls: Array<{ directory: string; remote?: string; branch?: string }> = [];
 const createdPayloads: CreateWorktreeArgs[] = [];
 const toastWarnings: string[] = [];
@@ -49,7 +50,7 @@ mock.module('@/lib/gitApi', () => ({
     if (gitFetchError) {
       return Promise.reject(gitFetchError);
     }
-    return Promise.resolve({ success: true });
+    return Promise.resolve({ success: gitFetchSuccess });
   },
 }));
 
@@ -94,6 +95,7 @@ describe('withWorktreeFetchedStartRef', () => {
     gitStatus = { current: 'main', tracking: 'origin/main', ahead: 0, behind: 0 };
     branchTracking = {};
     gitFetchError = null;
+    gitFetchSuccess = true;
     gitFetchCalls.length = 0;
     createdPayloads.length = 0;
     toastWarnings.length = 0;
@@ -120,6 +122,19 @@ describe('withWorktreeFetchedStartRef', () => {
   test('falls back to the original args when the fetch fails', async () => {
     gitStatus = { current: 'main', tracking: 'origin/main', ahead: 0, behind: 15 };
     gitFetchError = new Error('network down');
+
+    const args = baseArgs();
+    const resolved = await withWorktreeFetchedStartRef(project, args);
+
+    expect(resolved).toBe(args);
+    expect(resolved.startRef).toBe(undefined);
+    expect(gitFetchCalls).toHaveLength(1);
+    expect(toastWarnings).toHaveLength(1);
+  });
+
+  test('falls back to the original args when the fetch resolves unsuccessful', async () => {
+    gitStatus = { current: 'main', tracking: 'origin/main', ahead: 0, behind: 15 };
+    gitFetchSuccess = false;
 
     const args = baseArgs();
     const resolved = await withWorktreeFetchedStartRef(project, args);
@@ -234,8 +249,10 @@ describe('createWorktreeWithDefaults fetch integration', () => {
     gitStatus = { current: 'main', tracking: 'origin/main', ahead: 0, behind: 0 };
     branchTracking = { main: 'origin/main' };
     gitFetchError = null;
+    gitFetchSuccess = true;
     gitFetchCalls.length = 0;
     createdPayloads.length = 0;
+    toastWarnings.length = 0;
   });
 
   test('skips upstream defaults when the start ref was refreshed from remote', async () => {

@@ -161,13 +161,20 @@ export const withWorktreeFetchedStartRef = async (
     return args;
   }
 
-  try {
-    await gitFetch(projectDirectory, { remote: tracking.remote, branch: tracking.branch });
-  } catch {
+  const fallbackToLocalSource = () => {
     toast.warning(
       formatMessage(useI18nStore.getState().dictionary, 'session.newWorktree.toast.fetchSourceFailed'),
     );
     return args;
+  };
+
+  try {
+    const fetchResult = await gitFetch(projectDirectory, { remote: tracking.remote, branch: tracking.branch });
+    if (fetchResult.success !== true) {
+      return fallbackToLocalSource();
+    }
+  } catch {
+    return fallbackToLocalSource();
   }
 
   return { ...args, startRef: `remotes/${tracking.remote}/${tracking.branch}` };

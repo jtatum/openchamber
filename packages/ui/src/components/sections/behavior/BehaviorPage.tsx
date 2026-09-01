@@ -20,6 +20,7 @@ import {
 } from '@/lib/responseStyle';
 import type { DesktopSettings } from '@/lib/desktop';
 import { runtimeFetch } from '@/lib/runtime-fetch';
+import { useConfigStore } from '@/stores/useConfigStore';
 import { noteDeferredRestartFromPayload, recordDeferredOpenCodeRestart } from '@/lib/opencode/deferredRestart';
 import { SettingsPageLayout } from '@/components/sections/shared/SettingsPageLayout';
 import {
@@ -105,6 +106,7 @@ const saveBehaviorSetting = async (settings: Partial<DesktopSettings>, fallbackE
 export const BehaviorPage: React.FC = () => {
   const { t } = useI18n();
   const isVSCode = useIsVSCodeRuntime();
+  const setSettingsWorktreeFetchSource = useConfigStore((state) => state.setSettingsWorktreeFetchSource);
   const [prompt, setPrompt] = React.useState('');
   const [optimizeSystemPrompt, setOptimizeSystemPrompt] = React.useState(false);
   const [worktreeFetchSource, setWorktreeFetchSource] = React.useState(DEFAULT_BEHAVIOR_SETTINGS.worktreeFetchSource);
@@ -153,6 +155,9 @@ export const BehaviorPage: React.FC = () => {
               ? data.responseStyleCustomInstructions
               : '',
           };
+          if (typeof data.worktreeFetchSource === 'boolean') {
+            setSettingsWorktreeFetchSource(data.worktreeFetchSource);
+          }
           if (typeof data.globalBehaviorPrompt === 'string') {
             nextSettings = { ...nextSettings, prompt: data.globalBehaviorPrompt };
           }
@@ -189,7 +194,7 @@ export const BehaviorPage: React.FC = () => {
 
     void load();
     return () => abort.abort();
-  }, []);
+  }, [setSettingsWorktreeFetchSource]);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -273,11 +278,13 @@ export const BehaviorPage: React.FC = () => {
   const handleWorktreeFetchSourceChange = (enabled: boolean) => {
     const previous = worktreeFetchSource;
     setWorktreeFetchSource(enabled);
+    setSettingsWorktreeFetchSource(enabled);
     void saveBehaviorSetting(
       { worktreeFetchSource: enabled },
       t('settings.behavior.page.toast.saveFailed'),
     ).catch((error) => {
       setWorktreeFetchSource(previous);
+      setSettingsWorktreeFetchSource(previous);
       const message = error instanceof Error ? error.message : t('settings.behavior.page.toast.saveFailed');
       toast.error(message);
     });
