@@ -54,6 +54,14 @@ const runGit = (cwd, args) =>
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+const readBranchConfig = (cwd, branch, key) => {
+  try {
+    return runGit(cwd, ['config', '--get', `branch.${branch}.${key}`]).trim();
+  } catch {
+    return '';
+  }
+};
+
 /**
  * A repository on `next` whose only remote publishes `defaultBranch` and has it
  * recorded as that remote's HEAD — the shape of every repository whose default
@@ -854,6 +862,76 @@ describe('createWorktree', () => {
       }
     }
   });
+
+  it('does not auto-track the remote start ref when creating a new branch from it', async () => {
+    if (!canRunGit()) return;
+
+    const previousXdgDataHome = process.env.XDG_DATA_HOME;
+    const dataHome = createTempDir();
+    process.env.XDG_DATA_HOME = dataHome;
+
+    try {
+      const { repository } = createRepositoryWithRemote({ defaultBranch: 'main' });
+
+      const created = await createWorktree(repository, {
+        mode: 'new',
+        branchName: 'openchamber/feature',
+        worktreeName: 'feature-wt',
+        startRef: 'remotes/origin/main',
+        setUpstream: true,
+        upstreamRemote: 'origin',
+        upstreamBranch: 'openchamber/feature',
+      });
+
+      expect(created.branch).toBe('openchamber/feature');
+
+      await expect.poll(
+        () => getWorktreeBootstrapStatus(created.path).then((status) => status.status === 'ready' || status.status === 'failed'),
+        { timeout: 5_000 }
+      ).toBe(true);
+
+      expect(readBranchConfig(created.path, 'openchamber/feature', 'remote')).toBe('');
+      expect(readBranchConfig(created.path, 'openchamber/feature', 'merge')).toBe('');
+    } finally {
+      if (previousXdgDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = previousXdgDataHome;
+      }
+    }
+  }, 30_000);
+
+  it('falls back to the remote start ref for upstream tracking when no explicit keys are given', async () => {
+    if (!canRunGit()) return;
+
+    const previousXdgDataHome = process.env.XDG_DATA_HOME;
+    const dataHome = createTempDir();
+    process.env.XDG_DATA_HOME = dataHome;
+
+    try {
+      const { repository } = createRepositoryWithRemote({ defaultBranch: 'main' });
+
+      const created = await createWorktree(repository, {
+        mode: 'new',
+        branchName: 'openchamber/fallback-wt',
+        worktreeName: 'fallback-wt',
+        startRef: 'remotes/origin/main',
+        setUpstream: true,
+      });
+
+      await expect.poll(
+        () => readBranchConfig(created.path, 'openchamber/fallback-wt', 'merge'),
+        { timeout: 5_000 }
+      ).toBe('refs/heads/main');
+      expect(readBranchConfig(created.path, 'openchamber/fallback-wt', 'remote')).toBe('origin');
+    } finally {
+      if (previousXdgDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = previousXdgDataHome;
+      }
+    }
+  }, 30_000);
 });
 
 // ---------------------------------------------------------------------------

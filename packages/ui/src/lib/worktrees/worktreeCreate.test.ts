@@ -255,16 +255,16 @@ describe('createWorktreeWithDefaults fetch integration', () => {
     toastWarnings.length = 0;
   });
 
-  test('skips upstream defaults when the start ref was refreshed from remote', async () => {
+  test('sets the new branch\'s own upstream when refreshed from remote', async () => {
     gitStatus = { current: 'main', tracking: 'origin/main', ahead: 0, behind: 15 };
 
     await createWorktreeWithDefaults(project, baseArgs());
 
     expect(createdPayloads).toHaveLength(1);
     expect(createdPayloads[0].startRef).toBe('remotes/origin/main');
-    expect(createdPayloads[0].setUpstream).toBe(undefined);
-    expect(createdPayloads[0].upstreamRemote).toBe(undefined);
-    expect(createdPayloads[0].upstreamBranch).toBe(undefined);
+    expect(createdPayloads[0].setUpstream).toBe(true);
+    expect(createdPayloads[0].upstreamRemote).toBe('origin');
+    expect(createdPayloads[0].upstreamBranch).toBe('openchamber/feature');
   });
 
   test('keeps upstream defaults when the start ref is untouched', async () => {

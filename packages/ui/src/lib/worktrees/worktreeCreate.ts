@@ -186,9 +186,6 @@ export const createWorktreeWithDefaults = async (
   options?: { resolvedRootTrackingRemote?: string | null }
 ) => {
   const fetchedArgs = await withWorktreeFetchedStartRef(project, args);
-  const wasRefreshedFromRemote = fetchedArgs !== args;
-  const resolvedArgs = wasRefreshedFromRemote
-    ? fetchedArgs
-    : await withWorktreeUpstreamDefaults(project.path, fetchedArgs, options);
+  const resolvedArgs = await withWorktreeUpstreamDefaults(project.path, fetchedArgs, options);
   return createWorktree(project, resolvedArgs);
 };

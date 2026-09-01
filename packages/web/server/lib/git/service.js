@@ -4266,6 +4266,7 @@ async function attachGitWorktreeToCandidate(context, candidate, input = {}) {
 
     const parsedRemoteStartRef = await resolveRemoteBranchRef(context.primaryWorktree, startRef);
     if (parsedRemoteStartRef) {
+      worktreeAddArgs.splice(2, 0, '--no-track');
       inferredUpstream = {
         remote: parsedRemoteStartRef.remote,
         branch: parsedRemoteStartRef.branch,
@@ -4287,10 +4288,10 @@ async function attachGitWorktreeToCandidate(context, candidate, input = {}) {
   await runGitCommandOrThrow(context.primaryWorktree, worktreeAddArgs, 'Failed to create git worktree');
 
   const upstreamRemote = shouldSetUpstream
-    ? String(inferredUpstream?.remote || input?.upstreamRemote || '').trim()
+    ? String(input?.upstreamRemote || inferredUpstream?.remote || '').trim()
     : '';
   const upstreamBranch = shouldSetUpstream
-    ? String(inferredUpstream?.branch || input?.upstreamBranch || '').trim()
+    ? String(input?.upstreamBranch || inferredUpstream?.branch || '').trim()
     : '';
 
   const bootstrapStatus = setWorktreeBootstrapState(
