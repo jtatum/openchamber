@@ -932,6 +932,63 @@ describe('createWorktree', () => {
       }
     }
   }, 30_000);
+
+  it('creates from a remote start ref when the refresh fetch fails but the ref exists locally', async () => {
+    if (!canRunGit()) return;
+
+    const previousXdgDataHome = process.env.XDG_DATA_HOME;
+    const dataHome = createTempDir();
+    process.env.XDG_DATA_HOME = dataHome;
+
+    try {
+      const { repository } = createRepositoryWithRemote({ defaultBranch: 'main' });
+      runGit(repository, ['remote', 'set-url', 'origin', '/nonexistent/openchamber-unreachable.git']);
+
+      const created = await createWorktree(repository, {
+        mode: 'new',
+        branchName: 'openchamber/stale-ref-wt',
+        worktreeName: 'stale-ref-wt',
+        startRef: 'remotes/origin/main',
+      });
+
+      expect(created.branch).toBe('openchamber/stale-ref-wt');
+      const expectedHead = runGit(repository, ['rev-parse', 'refs/remotes/origin/main']).trim();
+      expect(runGit(created.path, ['rev-parse', 'HEAD']).trim()).toBe(expectedHead);
+    } finally {
+      if (previousXdgDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = previousXdgDataHome;
+      }
+    }
+  }, 30_000);
+
+  it('rejects creation from a remote start ref that was never fetched and cannot be fetched', async () => {
+    if (!canRunGit()) return;
+
+    const previousXdgDataHome = process.env.XDG_DATA_HOME;
+    const dataHome = createTempDir();
+    process.env.XDG_DATA_HOME = dataHome;
+
+    try {
+      const { repository } = createRepositoryWithRemote({ defaultBranch: 'main' });
+      runGit(repository, ['update-ref', '-d', 'refs/remotes/origin/main']);
+      runGit(repository, ['remote', 'set-url', 'origin', '/nonexistent/openchamber-unreachable.git']);
+
+      await expect(createWorktree(repository, {
+        mode: 'new',
+        branchName: 'openchamber/never-fetched-wt',
+        worktreeName: 'never-fetched-wt',
+        startRef: 'remotes/origin/main',
+      })).rejects.toThrow(/does not appear to be a git repository|Could not read from remote repository/i);
+    } finally {
+      if (previousXdgDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = previousXdgDataHome;
+      }
+    }
+  }, 30_000);
 });
 
 // ---------------------------------------------------------------------------
